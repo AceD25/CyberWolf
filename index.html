@@ -1,0 +1,1261 @@
+<!doctype html>
+
+<html lang="ms">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CyberWolf — V1.5</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#04050a;--panel:#071024;--accent:#00e6ff;--accent2:#9b59ff;--muted:#7a8aa6;--glass: rgba(255,255,255,0.03); }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Orbitron,monospace;background:linear-gradient(180deg,#02030a 0%,#05102a 60%);color:#e6f7ff}
+    .app{max-width:1200px;margin:12px auto;padding:12px}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between}
+    header h1{font-size:18px;margin:0;color:var(--accent)}
+    header .small{font-size:12px;color:var(--muted)}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;margin-top:12px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+    input,button,select,textarea{font-family:inherit}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    button{padding:9px 12px;border-radius:10px;border:none;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#001;cursor:pointer;font-weight:700}
+    .hidden { display:none !important }
+    .lobby-grid{display:grid;grid-template-columns:1fr 320px;gap:12px}
+    @media (max-width:900px){.lobby-grid{grid-template-columns:1fr} header{flex-direction:column;align-items:flex-start}}.rooms-list{max-height:280px;overflow:auto} .room-item{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+
+.game-grid{display:grid;grid-template-columns:1fr 320px;gap:12px;margin-top:12px}
+@media (max-width:900px){.game-grid{grid-template-columns:1fr}}
+
+/* responsive chat height */
+.chat{height:40vh; min-height:160px; max-height:520px; overflow:auto;padding:8px;border-radius:8px;background:var(--glass);border:1px solid rgba(255,255,255,0.02)}
+
+.msg{padding:6px;margin-bottom:6px;border-radius:6px} .msg .meta{font-size:11px;color:var(--muted)}
+.msg.server{background:rgba(0,0,0,0.12);border-left:3px solid rgba(0,230,255,0.25)}
+
+.players{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px} .player{padding:8px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border:1px solid rgba(255,255,255,0.02)} .status-online{color:#6df08b} .status-banned{color:#ffcc00} .status-elim{color:#ff6b6b}
+
+.gacha{display:flex;align-items:center;justify-content:center;height:160px;position:relative} .gacha .spinner{width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#001;font-weight:800;font-size:16px;animation:spin 1.8s linear infinite} @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+.hidden-role{background:rgba(0,0,0,0.6);padding:8px;border-radius:8px;font-size:14px}
+.controls{display:flex;gap:8px;flex-wrap:wrap} .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:12px} .role-badge{padding:6px;border-radius:8px;background:linear-gradient(90deg,#0ff,#9b59ff);color:#001;font-weight:700}
+
+#adminControls{border:1px dashed rgba(255,255,255,0.04);padding:8px;border-radius:8px;margin-top:8px}
+.small-muted{font-size:12px;color:var(--muted);margin-top:8px}
+.badge-admin{padding:4px 8px;border-radius:6px;background:#ffeb3b;color:#000;font-weight:700}
+.footer-note{font-size:12px;color:var(--muted);margin-top:8px}
+
+/* small widget - responsive */
+#smallCommandWidget{
+  position:fixed; right:12px; bottom:12px; width:300px; max-width:calc(100% - 24px); background:var(--panel); padding:0; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.6); z-index:999; overflow:hidden; display:flex; flex-direction:column;
+  touch-action:none;
+}
+@media (max-width:420px){
+  #smallCommandWidget{ width:86vw; right:7vw; bottom:10px; }
+}
+#smallCommandWidget.minimized{height:44px;width:160px;overflow:visible}
+#smallCommandWidget .cmd-header{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#001;font-weight:700;cursor:grab; user-select:none}
+#smallCommandWidget .cmd-body{padding:10px}
+.tiny-input{flex:1;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+.tiny-btn{padding:8px 10px;border-radius:6px}
+#restoreCmdBtn{position:fixed;display:none;z-index:10000;padding:8px 10px;border-radius:999px;background:var(--accent);color:#001;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,0.6)}
+
+/* minimize icon style */
+.icon-min{width:28px;height:28px;border-radius:6px;border:none;background:rgba(255,255,255,0.08);display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+
+/* commandCard draggable fixed */
+#commandCard.draggable-fixed{position:fixed;z-index:900;cursor:grab}
+
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>CyberWolf — Beta</h1>
+      <div class="small">V1.5.250</div>
+    </div>
+    <div class="small">Warewolf Cyber Version</div>
+  </header>  <!-- JOIN UI -->  <div id="joinUi" class="card">
+    <h3>Welcome — Join / Create</h3>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input id="displayName" placeholder="Nama (contoh: Ali)" />
+      <button id="saveNameBtn">Simpan</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      <label style="font-size:13px">Saya <input id="isAdminCheckbox" type="checkbox" style="margin-left:6px"/></label>
+      <div class="small-muted" style="margin-left:8px">Okay then</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div><input id="roomCodeInput" placeholder="Masukkan code room (atau buat baru)" /></div>
+      <div><button id="quickJoinBtn">Join</button></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;margin-bottom:8px">
+      <div><input id="maxPlayers" type="number" value="12" min="2" max="50" /></div>
+      <div><button id="createRoomBtn">Buat Room Baru</button></div>
+    </div>
+    <details style="margin-top:8px">
+      <summary>Advanced room settings (optional)</summary>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px">
+        <div><label>Day duration (s)</label><input id="settingDay" type="number" value="300" min="10" /></div>
+        <div><label>Night duration (s)</label><input id="settingNight" type="number" value="180" min="10" /></div>
+        <div><label>Anonymous votes</label><select id="settingAnonVote"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
+        <div><label>Simulation mode</label><select id="settingSimulation"><option value="false">Off</option><option value="true">On</option></select></div>
+      </div>
+    </details>
+    <div style="margin-top:12px">
+      <h4>Available Rooms</h4>
+      <div class="rooms-list" id="roomsList">Loading...</div>
+    </div>
+    <div class="footer-note">Tip: Ini masih beta, jika ada error/bug,bagitahu saya.</div>
+  </div>  <!-- LOBBY UI -->  <div id="lobbyUi" class="card hidden">
+    <div class="lobby-grid">
+      <div>
+        <h3>Room: <span id="roomCodeBadgeLobby">—</span> <span id="adminBadge" class="badge-admin hidden">ADMIN</span></h3>
+        <div style="margin-top:8px">
+          <h4>Rules & Role Intro</h4>
+          <div class="rule">- Siang / Malam configurable.<br>- Host tekan <strong>Start</strong> untuk mula. Jika simulation/on admin test: boleh start walau kurang pemain.</div>
+        </div>
+        <div style="margin-top:12px" id="adminControls" class="hidden">
+          <strong>Admin Controls</strong>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button id="addDummyBtn">Tambah 1 Dummy</button>
+            <button id="addManyDummyBtn">Tambah 3 Dummy</button>
+            <button id="removeDummiesBtn">Buang Semua Dummy</button>
+            <button id="forceStartBtn">Force Start</button>
+            <button id="simulateBtn">Run Simulation (3 rounds)</button>
+          </div>
+          <div class="small-muted">Admin test/Force start bypass syarat min pemain.</div>
+        </div>
+      </div>
+      <div>
+        <h4>Waiting Players</h4>
+        <div id="playersListLobby" class="players" style="max-height:300px;overflow:auto"></div>
+        <div style="margin-top:12px" class="controls">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <label style="font-size:12px;color:var(--muted)">Hacker slots:</label>
+            <input id="hackerCountInput" type="number" value="1" min="1" max="5" style="width:80px" />
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="startGameBtnLobby">Start (host)</button>
+            <button id="leaveRoomLobby">Leave</button>
+          </div>
+        </div>
+        <div class="small-muted" style="margin-top:10px">Room settings: <span id="roomSettingsSummary">—</span></div>
+      </div>
+    </div>
+  </div>  <!-- GAME UI -->  <div id="gameUi" class="card hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="pill" id="roomCodeBadge">Room: —</div>
+        <div style="margin-top:6px">Host: <span id="hostName">—</span></div>
+      </div>
+      <div>
+        <div>Phase: <span id="phaseBadge" class="pill">LOBBY</span></div>
+        <div style="margin-top:6px">Timer: <span id="timer">00:00</span></div>
+      </div>
+    </div><div style="margin-top:12px" class="game-grid">
+  <div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="gacha" style="flex:1"><div id="gachaArea"><div class="spinner">GACHA</div></div></div>
+      <div style="width:260px;min-width:200px">
+        <h4>Your Role</h4>
+        <div id="yourRole" class="hidden-role">Hidden — tekan Start untuk gacha</div>
+        <div style="margin-top:8px" id="roleCommands"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="card">
+      <h4>Public Chat</h4>
+      <div id="publicChat" class="chat"></div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <input id="publicMsg" placeholder="Ketik pesan umum..." />
+        <button id="sendPublic">Send</button>
+      </div>
+    </div>
+
+    <div id="commandCard" style="margin-top:12px" class="card hidden">
+      <div id="cmdCardHandle" style="display:flex;justify-content:space-between;align-items:center;cursor:grab;padding:8px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#001;font-weight:700">
+        <div>Command Chat</div>
+        <div style="display:flex;gap:6px">
+          <button id="minimizeCmdCard" class="icon-min" title="Minimize">_</button>
+        </div>
+      </div>
+      <div id="commandChat" class="chat" style="margin-top:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <input id="commandMsg" placeholder="Ketik command... (contoh: /scan @Ali)" />
+        <button id="sendCommand">Send Command</button>
+      </div>
+    </div>
+  </div>
+
+  <aside>
+    <div>
+      <h4>Players</h4>
+      <div id="playersList" class="players"></div>
+    </div>
+
+    <div style="margin-top:12px">
+      <h4>Controls</h4>
+      <div class="controls">
+        <button id="voteBtn" style="display:none">Vote</button>
+        <button id="voteSkip">Skip Vote</button>
+        <button id="leaveRoom">Leave</button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+  </div>  <footer class="small-muted">Use a laptop or computer for a better experience</footer>
+</div><!-- vote overlay --><div id="voteOverlay" class="hidden"></div><!-- small command widget (draggable & minimizable) --><div id="smallCommandWidget" class="hidden" role="dialog" aria-label="Command Widget">
+  <div class="cmd-header" id="cmdHeader">
+    <div style="display:flex;align-items:center;gap:8px"><div style="font-weight:700">Command</div><div id="cmdMiniLoader" class="loader" style="display:none"></div></div>
+    <div style="display:flex;gap:6px">
+      <button id="minimizeCmd" class="icon-min" title="Minimize">_</button>
+    </div>
+  </div>
+  <div class="cmd-body" id="cmdBody">
+    <div id="smallCmdChat" class="chat"></div>
+    <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+      <input id="smallCommandInput" class="tiny-input" placeholder="/hack nama" />
+      <button id="smallSendCmd" class="tiny-btn">Kirim</button>
+    </div>
+  </div>
+</div><!-- restore button (shown when widget minimized) --><button id="restoreCmdBtn" aria-hidden="true">Command</button>
+
+<!-- Audio --><audio id="lobbyMusic" loop src="lobby.mp3"></audio> <audio id="gameMusic" loop src="game.mp3"></audio>
+
+<!-- win overlay --><div id="winOverlay" class="hidden"><div class="card" id="winBox" style="max-width:700px;margin:40px auto"></div></div><!-- Firebase v9 modular (CDN) --><script type="module">
+  // ----- CONFIG (same) -----
+  const firebaseConfig = {
+    apiKey: "AIzaSyBYL_UFlRyNoNxF3R94eocEcj-TaL3_7mA",
+    authDomain: "charge-898e6.firebaseapp.com",
+    databaseURL: "https://charge-898e6-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "charge-898e6",
+    storageBucket: "charge-898e6-firebasestorage.app",
+    messagingSenderId: "927180796758",
+    appId: "1:927180796758:web:00fabe4d34f1c9bfa5dcf7"
+  };
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js'
+  import { getDatabase, ref, set, push, onValue, update, get, child, remove } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js'
+
+  const app = initializeApp(firebaseConfig)
+  const db = getDatabase(app)
+
+  const $ = q=>document.querySelector(q)
+  const qs = q=>Array.from(document.querySelectorAll(q))
+
+  // state
+  let localId = localStorage.getItem('cyber_userId') || ('u_'+Math.random().toString(36).slice(2,9))
+  localStorage.setItem('cyber_userId', localId)
+  let displayName = localStorage.getItem('cyber_name') || ''
+  let isAdminLocal = localStorage.getItem('cyber_isAdmin') === 'true' || false
+  let currentRoom = null
+  let myRole = null
+  let isHost = false
+  let players = {}
+  let phase = 'LOBBY'
+  let timers = {day:300, night:180}
+  let timerInterval = null
+
+  // Roles
+  const ALL_ROLES = [
+    {id:'cyberwolf',name:'CyberWolf (Hacker)',commands:['/hack','/fake'], allowDay:false},
+    {id:'glitches',name:'Glitches (Hacker)',commands:['/glitches','/fake-chat','/hack'], allowDay:false},
+    {id:'whitehat',name:'White Hat',commands:['/scan','/monitor'], allowDay:true},
+    {id:'firewall',name:'Firewall',commands:['/protect','/reflect'], allowDay:false},
+    {id:'crypt',name:'Cryptographer',commands:['/revive','/save'], allowDay:false},
+    {id:'ddos',name:'DDoS (Netral)',commands:['/revenge','/lag'], allowDay:false},
+    {id:'sysadmin',name:'SysAdmin',commands:['/shutdown','/firewall'], allowDay:true},
+    {id:'netizen',name:'Netizen',commands:[], allowDay:false}
+  ]
+
+  // COMMAND usage limits (in nights)
+  // value = minimum number of nights to wait between uses. 
+  // Example: 1 = can use once per night (currentNight - lastUsedNight >= 1)
+  // 2 = once per 2 nights, 3 = once per 3 nights
+  const COMMAND_LIMITS = {
+    hack: 1,
+    glitches: 1,
+    'fake-chat': 3,
+    protect: 3,
+    reflect: 3,
+    scan: 3,
+    monitor: 2,
+    save: 2,       // once per 2 nights
+    shutdown: 2,   // once per 2 nights
+    revive: 3,     // once per 3 nights
+    revenge: 3     // once per 3 nights
+  }
+
+  // UI refs
+  const roomsListEl = $('#roomsList')
+  const displayNameEl = $('#displayName')
+  const saveNameBtn = $('#saveNameBtn')
+  const createRoomBtn = $('#createRoomBtn')
+  const joinRoomBtn = $('#quickJoinBtn')
+  const roomCodeInput = $('#roomCodeInput')
+  const maxPlayersInput = $('#maxPlayers')
+  const hackerCountInput = $('#hackerCountInput')
+  const isAdminCheckbox = $('#isAdminCheckbox')
+
+  const settingDayEl = $('#settingDay')
+  const settingNightEl = $('#settingNight')
+  const settingAnonVoteEl = $('#settingAnonVote')
+  const settingSimulationEl = $('#settingSimulation')
+
+  const joinUi = $('#joinUi')
+  const lobbyUi = $('#lobbyUi')
+  const gameUi = $('#gameUi')
+
+  const roomCodeBadge = $('#roomCodeBadge')
+  const roomCodeBadgeLobby = $('#roomCodeBadgeLobby')
+  const hostNameEl = $('#hostName')
+  const playersListEl = $('#playersList')
+  const playersListLobby = $('#playersListLobby')
+  const yourRoleEl = $('#yourRole')
+  const roleCommandsEl = $('#roleCommands')
+  const publicChatEl = $('#publicChat')
+  const sendPublicBtn = $('#sendPublic')
+  const publicMsgInput = $('#publicMsg')
+  const commandChatEl = $('#commandChat')
+  const commandMsgInput = $('#commandMsg')
+  const sendCommandBtn = $('#sendCommand')
+  const startGameBtnLobby = $('#startGameBtnLobby')
+  const timerEl = $('#timer')
+  const phaseBadge = $('#phaseBadge')
+  const gachaArea = $('#gachaArea')
+  const voteSkipBtn = $('#voteSkip')
+  const voteBtn = $('#voteBtn')
+  const leaveRoomBtn = $('#leaveRoom')
+  const leaveRoomLobbyBtn = $('#leaveRoomLobby')
+  const commandCard = $('#commandCard')
+  const cmdCardHandle = $('#cmdCardHandle')
+  const voteOverlay = $('#voteOverlay')
+
+  // admin UI refs
+  const adminControlsEl = $('#adminControls')
+  const addDummyBtn = $('#addDummyBtn')
+  const addManyDummyBtn = $('#addManyDummyBtn')
+  const removeDummiesBtn = $('#removeDummiesBtn')
+  const forceStartBtn = $('#forceStartBtn')
+  const simulateBtn = $('#simulateBtn')
+  const adminBadge = $('#adminBadge')
+  const roomSettingsSummary = $('#roomSettingsSummary')
+
+  // small widget refs
+  const smallWidget = $('#smallCommandWidget')
+  const cmdHeader = $('#cmdHeader')
+  const cmdBody = $('#cmdBody')
+  const smallChat = $('#smallCmdChat')
+  const smallInput = $('#smallCommandInput')
+  const smallSendBtn = $('#smallSendCmd')
+  const minimizeSmallBtn = $('#minimizeCmd')
+  const restoreBtn = $('#restoreCmdBtn')
+  const minimizeCardBtn = $('#minimizeCmdCard')
+
+  // win overlay + box
+  const winOverlay = $('#winOverlay')
+  const winBox = $('#winBox')
+
+  // Audio refs
+  const lobbyMusic = $('#lobbyMusic')
+  const gameMusic = $('#gameMusic')
+
+  function playLobbyMusic(){ try{ gameMusic.pause(); gameMusic.currentTime=0}catch(e){} lobbyMusic.play().catch(()=>{}) }
+  function playGameMusic(){ try{ lobbyMusic.pause(); lobbyMusic.currentTime=0}catch(e){} gameMusic.play().catch(()=>{}) }
+  function stopAllMusic(){ try{ lobbyMusic.pause(); lobbyMusic.currentTime=0 }catch(e){} try{ gameMusic.pause(); gameMusic.currentTime=0 }catch(e){} }
+
+  // ---------- helpers ----------
+  function now(){ return Date.now() }
+  function shortId(n=4){ return Math.random().toString(36).slice(2,2+n).toUpperCase() }
+  function isWideScreen(){ return window.innerWidth > 900 }
+
+  // SERVER MESSAGE THROTTLE (client-side)
+  const serverThrottleMap = {}
+  const DEFAULT_SERVER_MIN_INTERVAL = 3000
+  async function pushServerMessage(text, opts = { minInterval: DEFAULT_SERVER_MIN_INTERVAL, force:false }){
+    if(!currentRoom) return
+    const key = String(text||'').trim()
+    const nowt = Date.now()
+    const last = serverThrottleMap[key] || 0
+    if(!opts.force && (nowt - last) < (opts.minInterval || DEFAULT_SERVER_MIN_INTERVAL)){
+      console.debug('pushServerMessage throttled:', key)
+      return
+    }
+    try{
+      serverThrottleMap[key] = nowt
+      await push(ref(db,`rooms/${currentRoom}/publicMessages`), {name:'Server',uid:'server',text,ts:now()})
+    }catch(e){ console.warn('pushServerMessage failed', e) }
+  }
+
+  // command durations (ms)
+  const DURATIONS = {
+    PROTECT: 1000 * 60,      // 2 minutes
+    REFLECT: 1000 * 60,
+    SAVE: 1000 * 60,         // 5 minutes
+    DISABLE: 1000 * 60,          // 30 seconds
+    REVIVE_WINDOW: 1000 * 60 * 3 // can revive within 3 minutes
+  }
+
+  // init UI values
+  displayNameEl.value = displayName
+  isAdminCheckbox.checked = isAdminLocal
+
+  // Listen rooms
+  function listenRooms(){ const roomsRef = ref(db,'rooms'); onValue(roomsRef,(snap)=>{ const data = snap.val()||{}; roomsListEl.innerHTML = ''; Object.keys(data).slice(-50).reverse().forEach(code=>{ const r = data[code]; const div = document.createElement('div'); div.className='room-item'; div.innerHTML = `<div><strong>${code}</strong><div style='font-size:12px;color:var(--muted)'>${r.state||'LOBBY'} • ${r.playerCount||0}/${r.maxPlayers||0}</div></div><div><button data-code='${code}'>Join</button></div>`; roomsListEl.appendChild(div); div.querySelector('button').onclick = ()=>{ roomCodeInput.value = code } }) }) }
+  listenRooms()
+
+  // Save name & admin local flag
+  saveNameBtn.onclick = ()=>{ displayName = displayNameEl.value.trim() || ('Player_'+localId.slice(-4)); localStorage.setItem('cyber_name', displayName); alert('Saved name: '+displayName) }
+  isAdminCheckbox.onchange = ()=>{ isAdminLocal = !!isAdminCheckbox.checked; localStorage.setItem('cyber_isAdmin', isAdminLocal ? 'true' : 'false'); alert('Admin local flag: '+isAdminLocal) }
+
+  // Create / Join
+  createRoomBtn.onclick = async ()=>{ 
+    if(!displayName){ alert('Simpan nama dulu'); return }
+    const code = 'R_'+Math.random().toString(36).slice(2,6).toUpperCase();
+    const roomRef = ref(db,'rooms/'+code);
+    const day = parseInt(settingDayEl.value) || 300
+    const night = parseInt(settingNightEl.value) || 180
+    const anonVote = settingAnonVoteEl.value === 'true'
+    const simulation = settingSimulationEl.value === 'true'
+    const maxPlayers = parseInt(maxPlayersInput.value) || 12
+    const obj = {code, host:localId, hostName:displayName, state:'LOBBY', playerCount:1, maxPlayers, createdAt:now(), settings:{day, night, anonVote, simulation}}
+    await set(roomRef, obj)
+    await set(ref(db,`rooms/${code}/players/${localId}`), {id:localId,name:displayName,status:'online',isHost:true,isBot:false})
+    enterRoom(code)
+  }
+
+  joinRoomBtn.onclick = async ()=>{
+    const code = roomCodeInput.value.trim().toUpperCase()
+    if(!code){ alert('Masukkan code room'); return }
+    const snapshot = await get(ref(db,'rooms/'+code))
+    if(!snapshot.exists()){ alert('Room tidak dijumpai'); return }
+    const r = snapshot.val()
+    if(r.state && r.state!=='LOBBY'){ alert('Room sudah mulai'); return }
+    await set(ref(db,`rooms/${code}/players/${localId}`), {id:localId,name:displayName,status:'online',isHost:false,isBot:false})
+    await update(ref(db,`rooms/${code}`), {playerCount:(r.playerCount||0)+1})
+    enterRoom(code)
+  }
+
+  // Enter room
+  async function enterRoom(code){
+    currentRoom = code
+    roomCodeBadge.textContent = 'Room: '+code
+    roomCodeBadgeLobby.textContent = code
+    listenRoomUpdates(code); listenChats(code); listenPlayers(code); showLobbyUI()
+    watchMyRoleForRoom(code)
+    updateCommandWidgetVisibility()
+    const roleSnap = await get(ref(db,`rooms/${code}/roles`))
+    if(roleSnap.exists()){ myRole = (roleSnap.val()||{})[localId] || null; renderMyRole() }
+  }
+
+  function showJoinUI(){ stopAllMusic(); joinUi.classList.remove('hidden'); lobbyUi.classList.add('hidden'); gameUi.classList.add('hidden'); winOverlay.classList.add('hidden') }
+  function showLobbyUI(){ joinUi.classList.add('hidden'); lobbyUi.classList.remove('hidden'); gameUi.classList.add('hidden'); playLobbyMusic(); }
+  function showGameUI(){ joinUi.classList.add('hidden'); lobbyUi.classList.add('hidden'); gameUi.classList.remove('hidden'); playGameMusic(); }
+
+  // Room updates
+  function listenRoomUpdates(code){
+    const rref = ref(db,'rooms/'+code)
+    onValue(rref,(snap)=>{
+      const data = snap.val()||{}
+      phase = data.state || 'LOBBY'
+      phaseBadge.textContent = phase
+      hostNameEl.textContent = data.hostName || '—'
+      isHost = (data.host === localId)
+      const amAdminHere = isAdminLocal || isHost
+      if(amAdminHere){ adminControlsEl.classList.remove('false'); adminBadge.classList.remove('false') } else { adminControlsEl.classList.add('false'); adminBadge.classList.add('false') }
+      startGameBtnLobby.style.display = isHost && phase === 'LOBBY' ? 'inline-block' : 'none'
+      const settings = data.settings || {}
+      roomSettingsSummary.textContent = `Day ${settings.day||300}s • Night ${settings.night||180}s • AnonVote: ${settings.anonVote? 'Y':'N'} • Simulation: ${settings.simulation? 'Y':'N'}`
+      if(data.timerEndsAt){ startTimerTo(data.timerEndsAt) } else { stopTimer() }
+      if(data.rolesAssigned || (data.state && data.state !== 'LOBBY')){ showGameUI() }
+      updateCommandWidgetVisibility()
+      updateVoteButtonVisibility()
+    })
+  }
+
+  // players
+  function listenPlayers(code){
+    onValue(ref(db,`rooms/${code}/players`),(snap)=>{
+      players = snap.val()||{}
+      renderPlayers()
+      checkWinConditions()
+      checkInsufficientPlayers()
+      updateVoteButtonVisibility()
+    })
+  }
+
+  function renderPlayers(){
+    playersListEl.innerHTML = ''
+    playersListLobby.innerHTML = ''
+    Object.entries(players).forEach(([pid,p])=>{
+      const div = document.createElement('div')
+      div.className = 'player'
+      const botBadge = p.isBot ? ' <small style="color:#ffd27f">[BOT]</small>' : ''
+      div.innerHTML = `<div><strong>${p.name}${botBadge}</strong></div><div style='font-size:12px;color:var(--muted)'>${pid===localId?'<em>(You)</em>':''}</div><div style='margin-top:6px' class='${p.status==='online'?'status-online':p.status==='banned'?'status-banned':'status-elim'}'>${p.status}</div>`
+      playersListEl.appendChild(div.cloneNode(true))
+      playersListLobby.appendChild(div)
+    })
+  }
+
+  // Chat listeners (improved)
+  function listenChats(code){
+    const pubRef = ref(db,`rooms/${code}/publicMessages`)
+    onValue(pubRef,(snap)=>{
+      const msgsObj = snap.val() || {}
+      const arr = Object.entries(msgsObj).map(([k,v]) => ({k, ...v})).sort((a,b)=> (a.ts||0) - (b.ts||0))
+      const seen = new Set()
+      const MAX_TO_SHOW = 200
+      const filtered = []
+      for(let i = Math.max(0, arr.length - MAX_TO_SHOW); i < arr.length; i++){
+        const m = arr[i]
+        const hash = `${m.uid||''}|${Math.floor((m.ts||0)/1000)}|${(m.text||'').slice(0,120)}`
+        if(seen.has(hash)) continue
+        seen.add(hash)
+        filtered.push(m)
+      }
+      publicChatEl.innerHTML = ''
+      filtered.forEach(m => appendPublicMsg(m))
+      publicChatEl.scrollTop = publicChatEl.scrollHeight
+    })
+
+    const cmdRef = ref(db,`rooms/${code}/commandMessages`)
+    onValue(cmdRef,(snap)=>{
+      const msgsObj = snap.val() || {}
+      const arr = Object.entries(msgsObj).map(([k,v]) => ({k, ...v})).sort((a,b)=> (a.ts||0) - (b.ts||0))
+      const seen = new Set()
+      const MAX_TO_SHOW = 200
+      const filtered = []
+      for(let i = Math.max(0, arr.length - MAX_TO_SHOW); i < arr.length; i++){
+        const m = arr[i]
+        const hash = `${m.from||''}|${Math.floor((m.ts||0)/1000)}|${(m.text||'').slice(0,120)}`
+        if(seen.has(hash)) continue
+        seen.add(hash)
+        filtered.push(m)
+      }
+      commandChatEl.innerHTML = ''
+      smallChat.innerHTML = ''
+      filtered.forEach(m=> appendCommandMsg(m))
+      commandChatEl.scrollTop = commandChatEl.scrollHeight
+      smallChat.scrollTop = smallChat.scrollHeight
+    })
+  }
+
+  function appendPublicMsg(m){
+    if(m.uid === 'server' || !m.uid){
+      const d = document.createElement('div'); d.className='msg server'; d.innerHTML=`<div class='meta'>${m.name} • ${new Date(m.ts).toLocaleTimeString()}</div><div>${m.text}</div>`; publicChatEl.appendChild(d); return
+    }
+    const sender = players[m.uid]
+    const myStatus = players[localId] ? players[localId].status : 'online'
+    if(sender && (sender.status === 'eliminated' || sender.status === 'banned')){
+      if(myStatus === 'online') return
+      else { const d=document.createElement('div'); d.className='msg'; d.innerHTML=`<div class='meta'>${m.name} • ${new Date(m.ts).toLocaleTimeString()}</div><div>${m.text}</div>`; publicChatEl.appendChild(d); return }
+    }
+    let content = m.text || ''
+    if(m.fakeFrom){ content = `<em>(SPOOFED by ${m.fakeFromName || 'someone'})</em> — ${content}` }
+    const d = document.createElement('div'); d.className='msg'; d.innerHTML=`<div class='meta'>${m.name} • ${new Date(m.ts).toLocaleTimeString()}</div><div>${content}</div>`
+    publicChatEl.appendChild(d)
+  }
+
+  function appendCommandMsg(m){
+    const roomState = phase || 'LOBBY'
+    if(roomState === 'LOBBY') return
+    const msgRole = m.role || 'all'
+    const iAmSender = (m.from === localId)
+    const iHaveRoleId = myRole && myRole.id
+    let allowed = false
+    if(iAmSender) allowed = true
+    else if(m.from === 'server') allowed = true
+    else if(msgRole === 'all'){ allowed = !!(iHaveRoleId && myRole && Array.isArray(myRole.commands) && myRole.commands.length>0) }
+    else if(iHaveRoleId && msgRole === iHaveRoleId) allowed = true
+    if(!allowed) return
+    const d = document.createElement('div'); d.className='msg'; d.innerHTML=`<div class='meta'>${m.name} • ${new Date(m.ts).toLocaleTimeString()} • <small>role:${m.role}</small></div><div><code>${m.text}</code></div>`
+    commandChatEl.appendChild(d); smallChat.appendChild(d.cloneNode(true))
+  }
+
+  // public send
+  sendPublicBtn.onclick = async ()=>{
+    if(!currentRoom){ alert('Anda belum masuk room'); return }
+    const roomSnap = await get(ref(db,`rooms/${currentRoom}`))
+    const rstate = (roomSnap.val()||{}).state || 'LOBBY'
+    if(rstate==='LOBBY'){ alert('Chat hanya boleh digunakan semasa permainan (DAY/NIGHT).'); return }
+    let t = publicMsgInput.value.trim(); if(!t) return
+    await push(ref(db,`rooms/${currentRoom}/publicMessages`), {name:displayName,uid:localId,text:t,ts:now()})
+    publicMsgInput.value=''
+  }
+
+  // ---------- ADMIN helpers ----------
+  async function addDummy(count=1){
+    if(!currentRoom) { alert('Join room dulu'); return }
+    const snap = await get(ref(db,`rooms/${currentRoom}`))
+    if(!snap.exists()){ alert('Room hilang'); return }
+    const playersSnap = await get(ref(db,`rooms/${currentRoom}/players`))
+    const existing = playersSnap.exists() ? playersSnap.val() : {}
+    let maxBot = 0
+    Object.keys(existing).forEach(k=>{ if(k.startsWith('bot_')){ const n = parseInt(k.split('_')[1])||0; maxBot = Math.max(maxBot,n) } })
+    for(let i=1;i<=count;i++){
+      const idx = (maxBot + i).toString().padStart(3,'0')
+      const botId = 'bot_'+idx
+      const botName = 'Bot_'+idx
+      await set(ref(db,`rooms/${currentRoom}/players/${botId}`), {id:botId,name:botName,status:'online',isHost:false,isBot:true})
+    }
+    const total = Object.keys(existing).length + count
+    await update(ref(db,`rooms/${currentRoom}`), {playerCount: total})
+  }
+  addDummyBtn.onclick = ()=> addDummy(1)
+  addManyDummyBtn.onclick = ()=> addDummy(3)
+  async function removeDummies(){ if(!currentRoom) return; const playersSnap = await get(ref(db,`rooms/${currentRoom}/players`)); if(!playersSnap.exists()) return; const pls = playersSnap.val(); const botKeys = Object.keys(pls).filter(k=>k.startsWith('bot_')); for(const k of botKeys){ try{ await remove(ref(db,`rooms/${currentRoom}/players/${k}`)) }catch(e){console.warn(e)} } const remainingSnap = await get(ref(db,`rooms/${currentRoom}/players`)); const newCount = remainingSnap.exists() ? Object.keys(remainingSnap.val()).length : 0; await update(ref(db,`rooms/${currentRoom}`), {playerCount: newCount}) }
+  removeDummiesBtn.onclick = ()=> removeDummies()
+  forceStartBtn.onclick = async ()=>{ if(!currentRoom){ alert('Join room dulu'); return } const roomSnap = await get(ref(db,`rooms/${currentRoom}`)); const r = roomSnap.val()||{}; if(!(isHost || isAdminLocal)){ if(!confirm('Anda bukan host. Force-start memerlukan hak admin. Teruskan?')) return } await startGame({force:true}) }
+  simulateBtn.onclick = async ()=> { if(!currentRoom){ alert('Join room dulu'); return } if(!(isHost || isAdminLocal)){ if(!confirm('Anda bukan host. Teruskan simulasi?')) return } await runSimulation(3) }
+
+  // ---------- Command usage limit helpers ----------
+  async function getCurrentNight(){
+    if(!currentRoom) return 0
+    const snap = await get(ref(db,`rooms/${currentRoom}/nightCount`))
+    return snap.exists() ? (snap.val() || 0) : 0
+  }
+
+  async function canUseCommand(playerId, cmdKey){
+    if(!currentRoom) return false
+    const requiredGap = COMMAND_LIMITS[cmdKey] || 1
+    const currentNightSnap = await get(ref(db,`rooms/${currentRoom}/nightCount`))
+    const currentNight = currentNightSnap.exists() ? currentNightSnap.val() : 0
+    // if no night yet (e.g., lobby), allow (but higher-level checks will block anyway)
+    if(currentNight <= 0) return true
+    const usedSnap = await get(ref(db,`rooms/${currentRoom}/uses/${playerId}/${cmdKey}`))
+    if(!usedSnap.exists()) return true
+    const last = (usedSnap.val() && usedSnap.val().lastUsedNight) ? usedSnap.val().lastUsedNight : 0
+    return (currentNight - last) >= requiredGap
+  }
+
+  async function recordCommandUse(playerId, cmdKey){
+    if(!currentRoom) return
+    const currentNightSnap = await get(ref(db,`rooms/${currentRoom}/nightCount`))
+    const currentNight = currentNightSnap.exists() ? currentNightSnap.val() : 0
+    await set(ref(db,`rooms/${currentRoom}/uses/${playerId}/${cmdKey}`), {lastUsedNight: currentNight, ts: now(), by: playerId})
+  }
+
+  // ---------- Command helpers (new: implement actual effects + usage checks) ----------
+  function findPlayerIdByName(raw){
+    if(!raw) return null
+    const name = raw.replace(/^@+/, '').trim().toLowerCase()
+    for(const [pid, p] of Object.entries(players||{})){
+      if(!p || !p.name) continue
+      if(p.name.toLowerCase() === name) return pid
+    }
+    // try partial match
+    for(const [pid, p] of Object.entries(players||{})){
+      if(!p || !p.name) continue
+      if(p.name.toLowerCase().includes(name)) return pid
+    }
+    return null
+  }
+
+  async function pushCommandResult({text, role='all', toLocal=false, error=false}){
+    // role: which roles can see this command message, default 'all'
+    // toLocal: if true, set from to localId (so appendCommandMsg will allow sender)
+    const payload = {name: toLocal ? displayName : 'Server', from: toLocal ? localId : 'server', role, text, ts:now(), error: !!error}
+    await push(ref(db,`rooms/${currentRoom}/commandMessages`), payload)
+  }
+
+  // core command handler
+  async function handleCommand(cmdName, rawTarget, rawArgs=[]){
+    cmdName = cmdName.toLowerCase()
+    const targetName = rawTarget || rawArgs.join(' ') || ''
+    const targetId = targetName ? findPlayerIdByName(targetName) : null
+    // helper to respond as private to requester
+    const privateRole = (myRole && myRole.id) ? myRole.id : 'all'
+
+    try{
+      if(cmdName === 'scan'){
+        if(!targetId){ await pushCommandResult({text:`Error: target "${targetName}" tidak ditemui. Gunakan @Name atau nama penuh.`, role: privateRole, toLocal:true, error:true}); return }
+        // reveal role of target (don't expose to others) - send result only to requester (role=privateRole and from server)
+        const rolesSnap = await get(ref(db,`rooms/${currentRoom}/roles/${targetId}`))
+        const roleObj = rolesSnap.exists() ? rolesSnap.val() : null
+        const roleText = roleObj ? `${roleObj.name} (${roleObj.id})` : 'No role assigned / not found'
+        await pushCommandResult({text:`Scan result for ${players[targetId].name}: ${roleText}`, role: privateRole})
+        console.debug('/scan result', targetId, roleText)
+        return
+      }
+
+      if(cmdName === 'protect'){
+        if(!targetId){ await pushCommandResult({text:`Error: target "${targetName}" tidak ditemui.`, role: privateRole, toLocal:true, error:true}); return }
+        const expiresAt = now() + DURATIONS.PROTECT
+        await set(ref(db,`rooms/${currentRoom}/protected/${targetId}`), {by: localId, expiresAt})
+        await pushCommandResult({text:`Protected ${players[targetId].name} until ${new Date(expiresAt).toLocaleTimeString()}`, role: privateRole})
+        await pushServerMessage(`Someone applied protection to ${players[targetId].name}`)
+        return
+      }
+
+      if(cmdName === 'reflect'){
+        if(!targetId){ await pushCommandResult({text:`Error: target "${targetName}" tidak ditemui.`, role: privateRole, toLocal:true, error:true}); return }
+        const expiresAt = now() + DURATIONS.REFLECT
+        await set(ref(db,`rooms/${currentRoom}/reflect/${targetId}`), {by: localId, expiresAt})
+        await pushCommandResult({text:`Reflect set on ${players[targetId].name} until ${new Date(expiresAt).toLocaleTimeString()}`, role: privateRole})
+        await pushServerMessage(`Someone enabled reflect`)
+        return
+      }
+
+      if(cmdName === 'save'){
+        if(!targetId){ await pushCommandResult({text:`Error: target "${targetName}" tidak ditemui.`, role: privateRole, toLocal:true, error:true}); return }
+        const expiresAt = now() + DURATIONS.SAVE
+        await set(ref(db,`rooms/${currentRoom}/saved/${targetId}`), {by: localId, expiresAt})
+        await pushCommandResult({text:`Saved ${players[targetId].name} for next elimination window (until ${new Date(expiresAt).toLocaleTimeString()})`, role: privateRole})
+        await pushServerMessage(`${displayName} attempted to save ${players[targetId].name}`)
+        return
+      }
+
+      if(cmdName === 'revive'){
+        if(!targetId){ await pushCommandResult({text:`Error: target "${targetName}" tidak ditemui.`, role: privateRole, toLocal:true, error:true}); return }
+        const pSnap = await get(ref(db,`rooms/${currentRoom}/players/${targetId}`))
+        if(!pSnap.exists()){ await pushCommandResult({text:`Error: pemain tidak wujud.`, role: privateRole, error:true}); return }
+        const p = pSnap.val()
+        if(p.status !== 'eliminated' && p.status !== 'banned'){ await pushCommandResult({text:`${players[targetId].name} bukan eliminated; tidak dapat revive.`, role: privateRole, error:true}); return }
+        // revive action: set status online and notify
+        await update(ref(db,`rooms/${currentRoom}/players/${targetId}`), {status:'online'})
+        await pushCommandResult({text:`${players[targetId].name} revived (status set to online).`, role: privateRole})
+        await pushServerMessage(`${displayName} revived ${players[targetId].name}`)
+        return
+      }
+
+      if(cmdName === 'hack'){
+        if(!targetId){ await pushCommandResult({text:`Error: target "${targetName}" tidak ditemui.`, role: privateRole, toLocal:true, error:true}); return }
+        // schedule pending ban (processed at night end)
+        await set(ref(db,`rooms/${currentRoom}/pendingBans/${targetId}`), {by: localId, ts: now(), cmd: 'hack'})
+        await pushCommandResult({text:`Hack registered against ${players[targetId].name}. Will apply at night end.`, role: privateRole})
+        await pushServerMessage(`Someone trying hacked (target ${players[targetId].name})`)
+        return
+      }
+
+      if(cmdName === 'revenge' || cmdName === 'revenge' || cmdName === 'revenge'){
+        if(!targetId){ await pushCommandResult({text:`Error: target "${targetName}" tidak ditemui.`, role: privateRole, toLocal:true, error:true}); return }
+        // For DDoS / revenge for quick simulation: mark eliminated immediately
+        await update(ref(db,`rooms/${currentRoom}/players/${targetId}`), {status:'eliminated'})
+        await pushCommandResult({text:`${players[targetId].name} eliminated by revenge.`, role: privateRole})
+        await pushServerMessage(`${displayName} used /revenge on ${players[targetId].name}`)
+        return
+      }
+
+      if(cmdName === 'shutdown'){
+        if(!targetId){ await pushCommandResult({text:`Error: target "${targetName}" tidak ditemui.`, role: privateRole, toLocal:true, error:true}); return }
+        const expiresAt = now() + DURATIONS.DISABLE
+        await set(ref(db,`rooms/${currentRoom}/disabledCommands/${targetId}`), {by: localId, expiresAt})
+        await pushCommandResult({text:`${players[targetId].name}'s commands disabled until ${new Date(expiresAt).toLocaleTimeString()}`, role: privateRole})
+        await pushServerMessage(`Someone used /shutdown on ${players[targetId].name}`)
+        return
+      }
+
+      // default / unknown commands (shouldn't reach here because caller already checks allowed commands)
+      await pushCommandResult({text:`Executed ${cmdName} ${targetName || ''} (no-op implemented)`, role: privateRole})
+      return
+
+    }catch(err){
+      console.error('handleCommand error', err)
+      await pushCommandResult({text:`Error menjalankan ${cmdName}: ${err.message}`, role: privateRole, error:true})
+    }
+  }
+
+  // ---------- Command sending (entry) ----------
+  async function isMyCommandsDisabled(){
+    if(!currentRoom || !localId) return false
+    const snap = await get(ref(db,`rooms/${currentRoom}/disabledCommands/${localId}`))
+    if(!snap.exists()) return false
+    const o = snap.val()
+    return !!(o.expiresAt && o.expiresAt > now())
+  }
+
+  async function sendCommandText(t){
+    if(!currentRoom){ alert('Anda belum masuk room'); return }
+    t = t.trim(); if(!t) return
+    if(await isMyCommandsDisabled()){
+      await push(ref(db,`rooms/${currentRoom}/commandMessages`), {name:'Server',from:'server',role:'all',text:`Error: Your commands are disabled.`,ts:now(),cmd:t,error:true})
+      return
+    }
+    const roomSnap = await get(ref(db,`rooms/${currentRoom}`))
+    const rstate = (roomSnap.val()||{}).state || 'LOBBY'
+    if(rstate==='LOBBY'){ alert('Command chat hanya boleh digunakan semasa permainan (DAY/NIGHT).'); return }
+    if(rstate==='DAY' && !(myRole && myRole.allowDay)){ alert('Command hanya boleh digunakan ketika malam.'); return }
+
+    const parts = t.split(/\s+/)
+    const rawCmd = parts[0] || ''
+    const cmdName = rawCmd.replace(/^\/+/, '').toLowerCase()
+    const rawTarget = parts[1] || ''
+    const args = parts.slice(1)
+
+    const myCmds = (myRole && myRole.commands) ? myRole.commands.map(c=>c.replace(/^\/+/, '').toLowerCase()) : []
+    if(!myCmds.includes(cmdName)){
+      await push(ref(db,`rooms/${currentRoom}/commandMessages`), {name:displayName,from:localId,role:(myRole&&myRole.id)||'all',text:'error: no such command for your role',ts:now(),cmd:t,error:true})
+      return
+    }
+
+    // --- USAGE LIMIT CHECK ---
+    const allowed = await canUseCommand(localId, cmdName)
+    if(!allowed){
+      // tell player how many nights remaining (best-effort)
+      const currentNight = await getCurrentNight()
+      const usedSnap = await get(ref(db,`rooms/${currentRoom}/uses/${localId}/${cmdName}`))
+      const last = (usedSnap.exists() && usedSnap.val().lastUsedNight) ? usedSnap.val().lastUsedNight : 0
+      const requiredGap = COMMAND_LIMITS[cmdName] || 1
+      const remainingNights = Math.max(0, requiredGap - (currentNight - last))
+      await push(ref(db,`rooms/${currentRoom}/commandMessages`), {name:displayName,from:localId,role:(myRole&&myRole.id)||'all',text:`error: command \"/${cmdName}\" cooling down. Wait ${remainingNights} more night(s).`,ts:now(),cmd:t,error:true})
+      return
+    }
+
+    // record the command invocation (so others can see the command in command log)
+    await push(ref(db,`rooms/${currentRoom}/commandMessages`), {name:displayName,from:localId,role:(myRole&&myRole.id)||'all',text:`${rawCmd} ${rawTarget} ${args.slice(1).join(' ')}`.trim(),ts:now(),cmd:t,result:'sent'})
+
+    // mark usage BEFORE handling to prevent race conditions (store lastUsedNight)
+    await recordCommandUse(localId, cmdName)
+
+    // handle commands with actual effects
+    await handleCommand(cmdName, rawTarget, args)
+  }
+
+  sendCommandBtn.onclick = async ()=>{ const t = commandMsgInput.value.trim(); if(!t) return; await sendCommandText(t); commandMsgInput.value='' }
+  $('#smallSendCmd').onclick = async ()=>{ const t = $('#smallCommandInput').value.trim(); if(!t) return; await sendCommandText(t); $('#smallCommandInput').value='' }
+
+  // ---------- START GAME ----------
+  startGameBtnLobby.onclick = async ()=> { await startGame({force:false}) }
+  async function startGame({force=false} = {}){
+    if(!currentRoom) return
+    const roomSnap = await get(ref(db,`rooms/${currentRoom}`))
+    if(!roomSnap.exists()) return
+    const roomData = roomSnap.val() || {}
+    if(!isHost && !force && !(isAdminLocal && roomData.host===localId)){ alert('Hanya host boleh mula permainan (atau gunakan Force Start jika admin).'); return }
+    const pSnap = await get(ref(db,`rooms/${currentRoom}/players`))
+    const pls = pSnap.exists() ? pSnap.val() : {}
+    const ids = Object.keys(pls)
+    const settings = roomData.settings || {}
+    const simulationMode = settings.simulation === true || settings.simulation === 'true'
+    const adminTest = roomData.adminTest === true
+    if(!force && !simulationMode && !adminTest && ids.length < 3){ alert('Perlu sekurang-kurangnya 3 pemain untuk mula.'); return }
+    try{
+      await remove(ref(db,`rooms/${currentRoom}/pendingBans`))
+      await remove(ref(db,`rooms/${currentRoom}/fake`))
+      await remove(ref(db,`rooms/${currentRoom}/uses`))
+      await remove(ref(db,`rooms/${currentRoom}/disabledCommands`))
+      await remove(ref(db,`rooms/${currentRoom}/saved`))
+      await remove(ref(db,`rooms/${currentRoom}/lagged`))
+    }catch(e){ console.warn('cleanup before start failed',e) }
+    let hackerCount = parseInt(hackerCountInput.value) || 1
+    hackerCount = Math.max(1, hackerCount)
+    hackerCount = Math.min(hackerCount, Math.max(1, ids.length-1))
+    const rolePool = []
+    for(let i=0;i<hackerCount;i++){ rolePool.push(Math.random()<0.5?'cyberwolf':'glitches') }
+    rolePool.push('whitehat','firewall')
+    while(rolePool.length < ids.length) rolePool.push('netizen')
+    for(let i=rolePool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [rolePool[i],rolePool[j]]=[rolePool[j],rolePool[i]] }
+    const assign = {}
+    ids.forEach((pid,idx)=>{ const rid = rolePool[idx] || 'netizen'; const roleObj = ALL_ROLES.find(r=>r.id===rid) || ALL_ROLES.find(r=>r.id==='netizen'); assign[pid] = roleObj })
+    await set(ref(db,`rooms/${currentRoom}/roles`), assign)
+    // set initial nightCount = 1 on start
+    const endsAt = now() + (settings.night || 180) * 1000
+    await update(ref(db,`rooms/${currentRoom}`), {state:'NIGHT',timerEndsAt:endsAt,rolesAssigned:true, initialPlayerCount: ids.length, initialPlayers: ids, hackerCount, settings, nightCount: 1})
+    await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:'Game started — Night 1'})
+    await pushServerMessage('Game started — Night 1', {minInterval:500})
+    if(assign[localId]){ myRole = assign[localId]; renderMyRole(); updateCommandWidgetVisibility() }
+  }
+
+  // watch my role
+  function watchMyRoleForRoom(code){
+    if(!code) return
+    onValue(ref(db,`rooms/${code}/roles`),(snap)=>{
+      const all = snap.val()||{}
+      const hasAny = Object.keys(all).length > 0
+      if(all[localId]){
+        myRole = all[localId]
+        renderMyRole()
+        updateCommandWidgetVisibility()
+      } else {
+        myRole = null
+        if(hasAny){
+          yourRoleEl.innerHTML = `<div class='hidden-role'>Menunggu peranan... <span class='loader'></span></div>`
+          roleCommandsEl.innerHTML = ''
+        } else {
+          yourRoleEl.innerHTML = 'Hidden — belum dapat role'
+          roleCommandsEl.innerHTML = ''
+        }
+        updateCommandWidgetVisibility()
+      }
+    })
+  }
+
+  function renderMyRole(){
+    if(!myRole){ yourRoleEl.style.minHeight = '40px'; return }
+    yourRoleEl.innerHTML = `<div class='role-badge'>${myRole.name}</div><div style='margin-top:6px;color:var(--muted)'>ID: ${myRole.id}</div>`
+    roleCommandsEl.innerHTML = `<div style='margin-top:8px'><strong>Commands:</strong><div style='margin-top:6px'>${(myRole.commands && myRole.commands.length>0) ? myRole.commands.join(' ') : '—'}</div></div>`
+  }
+
+  // timers & phase progression
+  function startTimerTo(endsAt){ clearInterval(timerInterval); function tick(){ const rem = Math.max(0, Math.floor((endsAt - Date.now())/1000)); const mm = String(Math.floor(rem/60)).padStart(2,'0'); const ss = String(rem%60).padStart(2,'0'); timerEl.textContent = `${mm}:${ss}`; if(phase==='DAY' && rem===10) revealVoteSummary10s(); if(rem<=0){ clearInterval(timerInterval); timerInterval=null; onPhaseTimerEnds() } } tick(); timerInterval=setInterval(tick,1000) }
+  function stopTimer(){ clearInterval(timerInterval); timerInterval=null; timerEl.textContent='--:--' }
+
+  async function revealVoteSummary10s(){ if(!currentRoom) return; const votesSnap = await get(ref(db,`rooms/${currentRoom}/votes`)); const votes = votesSnap.val()||{}; const counts = {}; let skipCount = 0; Object.values(votes).forEach(v=>{ if(v.target && v.target.startsWith('SKIP_')) skipCount++; else counts[v.target] = (counts[v.target]||0)+1 }); let topId=null, topC=0; Object.keys(counts).forEach(k=>{ if(counts[k]>topC){ topC=counts[k]; topId=k }}); const topName = topId ? (players[topId] ? players[topId].name : topId) : '—'; const msg = `Tersisa 10s — Vote summary: ${topName}: ${topC} votes; Skip: ${skipCount}`; await pushServerMessage(msg) }
+
+  // onPhaseTimerEnds
+  async function onPhaseTimerEnds(){
+    if(!currentRoom) return
+    const snap = await get(ref(db,`rooms/${currentRoom}`))
+    const r = snap.val()||{}
+    if(r.state==='NIGHT'){
+      const pendingSnap = await get(ref(db,`rooms/${currentRoom}/pendingBans`))
+      if(pendingSnap.exists()){
+        const pending = pendingSnap.val()
+        for(const pid in pending){
+          try{
+            const pend = pending[pid]
+            const reflectSnap = await get(ref(db,`rooms/${currentRoom}/reflect/${pid}`))
+            const reflect = reflectSnap.exists() ? reflectSnap.val() : null
+            if(reflect && reflect.expiresAt && reflect.expiresAt > now()){
+              const attacker = pend.by
+              if(attacker){ await update(ref(db,`rooms/${currentRoom}/players/${attacker}`), {status:'banned'}); await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[attacker] ? players[attacker].name : attacker} banned by reflect`}); await update(ref(db,`rooms/${currentRoom}`), {state:'ENDED', winner:'cybersecurity'}); await pushServerMessage('CyberSecurity wins (reflect triggered)'); await checkWinConditions(); return }
+            }
+            const protSnap = await get(ref(db,`rooms/${currentRoom}/protected/${pid}`))
+            const prot = protSnap.exists() ? protSnap.val() : null
+            const globalProtSnap = await get(ref(db,`rooms/${currentRoom}/globalProtection`))
+            const globalProt = globalProtSnap.exists() ? globalProtSnap.val() : null
+            if(!(globalProt && globalProt.active) && !(prot && prot.expiresAt && prot.expiresAt > now())){
+              await update(ref(db,`rooms/${currentRoom}/players/${pid}`), {status:'banned'})
+              await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[pid] ? players[pid].name : pid} banned by hack`})
+              await pushServerMessage(`${players[pid] ? players[pid].name : pid} banned by hack`)
+            } else {
+              await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[pid] ? players[pid].name : pid} was protected; no ban applied`})
+              await pushServerMessage(`${players[pid] ? players[pid].name : pid} was protected; no ban applied`)
+            }
+          }catch(e){ console.error(e) }
+        }
+        await remove(ref(db,`rooms/${currentRoom}/pendingBans`))
+      }
+      const endsAt = now() + (r.settings?.day || timers.day) * 1000
+      await update(ref(db,`rooms/${currentRoom}`), {state:'DAY',timerEndsAt:endsAt})
+      await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:'Night ended — Day started'})
+      await pushServerMessage('Night ended — Day started')
+      await checkWinConditions()
+    } else if(r.state==='DAY'){
+      const votesSnap = await get(ref(db,`rooms/${currentRoom}/votes`))
+      const votes = votesSnap.val()||{}
+      const counts = {}; let skipCount=0
+      Object.values(votes).forEach(v=>{ if(v.target && v.target.startsWith('SKIP_')) skipCount++; else counts[v.target] = (counts[v.target]||0)+1 })
+      let out=null; let maxc=0
+      Object.keys(counts).forEach(t=>{ if(counts[t]>maxc){ maxc=counts[t]; out=t } })
+      if(out){
+        const saveSnap = await get(ref(db,`rooms/${currentRoom}/saved/${out}`))
+        const saved = saveSnap.exists() ? saveSnap.val() : null
+        if(saved && saved.expiresAt && saved.expiresAt > now()){
+          await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[out] ? players[out].name : out} would be eliminated but was saved`})
+          await pushServerMessage(`${players[out] ? players[out].name : out} was saved and not eliminated.`)
+        } else {
+          await update(ref(db,`rooms/${currentRoom}/players/${out}`), {status:'eliminated'})
+          await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[out] ? players[out].name : out} eliminated by vote (${maxc} votes)`})
+          await pushServerMessage(`${players[out] ? players[out].name : out} eliminated by vote (${maxc} votes)`)
+          const revSnap = await get(ref(db,`rooms/${currentRoom}/revenge/${out}`))
+          if(revSnap.exists()){ const rev = revSnap.val(); if(rev && rev.targetPid){ await update(ref(db,`rooms/${currentRoom}/players/${rev.targetPid}`), {status:'eliminated'}); await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[rev.targetPid] ? players[rev.targetPid].name : rev.targetPid} eliminated by revenge`}); await pushServerMessage(`${players[rev.targetPid] ? players[rev.targetPid].name : rev.targetPid} eliminated by revenge`) } }
+        }
+      }
+      const publicSummary = `Voting ended — ${out? (players[out]?players[out].name:out)+' eliminated' : 'No elimination'}; Skip votes: ${skipCount}`
+      await pushServerMessage(publicSummary)
+      await remove(ref(db,`rooms/${currentRoom}/votes`))
+      // increment nightCount when transitioning to next NIGHT
+      const endsAt = now() + (r.settings?.night || timers.night) * 1000
+      const newNightCount = (r.nightCount || 0) + 1
+      await update(ref(db,`rooms/${currentRoom}`), {state:'NIGHT',timerEndsAt:endsAt, nightCount: newNightCount})
+      await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`Day ended — Night ${newNightCount} started`})
+      await pushServerMessage('Day ended — Night started')
+      await checkWinConditions()
+    }
+  }
+
+  // voting
+  async function votePlayer(targetId){
+    if(!currentRoom) return
+    await set(ref(db,`rooms/${currentRoom}/votes/${localId}`), {voter:localId,target:targetId,ts:now()})
+    updateVoteButtonVisibility()
+    await pushServerMessage(`Vote cast`, {minInterval:2000})
+    alert('Vote cast')
+  }
+  voteSkipBtn.onclick = ()=> votePlayer('SKIP_'+localId)
+  voteBtn.onclick = ()=> showVoteOverlay()
+
+  async function showVoteOverlay(){
+    voteOverlay.innerHTML = ''; voteOverlay.classList.remove('hidden')
+    const title = document.createElement('div'); title.style.fontWeight='700'; title.style.marginBottom='8px'; title.textContent='Pilih pemain untuk vote'; voteOverlay.appendChild(title)
+    Object.entries(players).forEach(([pid,p])=>{
+      if(p.status !== 'online') return
+      const btn = document.createElement('button'); btn.textContent = p.name
+      btn.onclick = async ()=>{ await votePlayer(pid); closeVoteOverlay(); }
+      voteOverlay.appendChild(btn)
+    })
+    const cancel = document.createElement('button'); cancel.textContent='Batal'; cancel.onclick = ()=> closeVoteOverlay()
+    voteOverlay.appendChild(cancel)
+  }
+  function closeVoteOverlay(){ voteOverlay.classList.add('hidden'); voteOverlay.innerHTML = '' }
+
+  async function checkAllVotesCast(){
+    if(!currentRoom) return
+    const votesSnap = await get(ref(db,`rooms/${currentRoom}/votes`))
+    const votes = votesSnap.val()||{}
+    const voted = Object.keys(votes)
+    const aliveIds = Object.entries(players).filter(([id,p])=>p && p.status==='online').map(([id])=>id)
+    if(aliveIds.length === 0) return
+    const allVoted = aliveIds.every(id => voted.includes(id))
+    if(allVoted){
+      const roomSnap = await get(ref(db,`rooms/${currentRoom}`))
+      const r = roomSnap.val()||{}
+      if(r.state === 'DAY'){
+        const nowt = now()
+        const forcedEndsAt = nowt + 10000
+        const currentEndsAt = r.timerEndsAt || Infinity
+        const newEndsAt = Math.min(currentEndsAt, forcedEndsAt)
+        if(newEndsAt < currentEndsAt){ await update(ref(db,`rooms/${currentRoom}`), {timerEndsAt:newEndsAt}) }
+      }
+    }
+  }
+
+  // ---------- WIN / END LOGIC (unchanged) ----------
+  async function checkWinConditions(){
+    if(!currentRoom) return
+    const playersSnap = await get(ref(db,`rooms/${currentRoom}/players`))
+    const rolesSnap = await get(ref(db,`rooms/${currentRoom}/roles`))
+    const pls = playersSnap.exists() ? playersSnap.val() : {}
+    const roles = rolesSnap.exists() ? rolesSnap.val() : {}
+    const hackerIds = Object.entries(roles).filter(([id,r])=>r && (r.id==='cyberwolf' || r.id==='glitches')).map(([id])=>id)
+    const ddosIds = Object.entries(roles).filter(([id,r])=>r && r.id==='ddos').map(([id])=>id)
+    const aliveEntries = Object.entries(pls).filter(([id,p])=>p && p.status==='online')
+    const alive = aliveEntries.map(([id])=>id)
+    const aliveHackers = alive.filter(id => hackerIds.includes(id))
+    const aliveDdos = alive.filter(id => ddosIds.includes(id))
+    const allHackersEliminated = hackerIds.length>0 && hackerIds.every(id => pls[id] && (pls[id].status==='eliminated' || pls[id].status==='banned'))
+    if(allHackersEliminated){
+      await pushServerMessage('CyberWolf is eliminated. CyberSecurity Won', {minInterval: 500})
+      if(aliveDdos.length>0){ const names = aliveDdos.map(id=>pls[id]?pls[id].name:id).join(', '); await pushServerMessage(`DDoS (Netral) also wins: ${names}`, {minInterval: 500}) }
+      await update(ref(db,`rooms/${currentRoom}`), {state:'ENDED', winner:'cybersecurity'})
+      await showEnd('CyberSecurity Won — CyberWolf eliminated')
+      return
+    }
+    const nonHackerIds = Object.keys(pls).filter(id => !hackerIds.includes(id) && !ddosIds.includes(id))
+    const allNonHackersDeadOrBanned = nonHackerIds.length>0 && nonHackerIds.every(id => pls[id] && (pls[id].status==='banned' || pls[id].status==='eliminated'))
+    const hackerAliveExists = hackerIds.some(id => pls[id] && pls[id].status==='online')
+    if(allNonHackersDeadOrBanned && hackerAliveExists){
+      await pushServerMessage('Hacker team won', {minInterval: 500})
+      if(aliveDdos.length>0){ const names = aliveDdos.map(id=>pls[id]?pls[id].name:id).join(', '); await pushServerMessage(`DDoS (Netral) also wins: ${names}`, {minInterval: 500}) }
+      await update(ref(db,`rooms/${currentRoom}`), {state:'ENDED', winner:'hacker'})
+      await showEnd('Hacker Team Won')
+      return
+    }
+  }
+
+  async function checkInsufficientPlayers(){
+    if(!currentRoom) return
+    const roomSnap = await get(ref(db,`rooms/${currentRoom}`))
+    const r = roomSnap.val()||{}
+    if(!r.rolesAssigned) return
+    const playersSnap = await get(ref(db,`rooms/${currentRoom}/players`))
+    const pls = playersSnap.exists() ? playersSnap.val() : {}
+    const aliveIds = Object.entries(pls).filter(([id,p])=>p && p.status==='online').map(([id])=>id)
+    const adminTest = r.adminTest === true
+    if(aliveIds.length < 3 && !adminTest){
+      await pushServerMessage('Pemain tidak mencukupi', {minInterval: 500})
+      await update(ref(db,`rooms/${currentRoom}`), {state:'ENDED', winner:'not_enough_players'})
+      await showEnd('Pemain tidak mencukupi — game ended')
+      return
+    }
+  }
+
+  async function showEnd(text){
+    let html = `<h2>${text}</h2><div style="margin-top:12px"><button id="closeEndBtn">Close</button></div>`
+    winBox.innerHTML = html
+    winOverlay.classList.remove('hidden')
+    $('#closeEndBtn').onclick = ()=>{ winOverlay.classList.add('hidden') }
+  }
+
+  // ---------- Simulation ----------
+  async function runSimulation(rounds=3){
+    if(!currentRoom) return
+    const roomSnap = await get(ref(db,`rooms/${currentRoom}`))
+    const r = roomSnap.val()||{}
+    await startGame({force:true})
+    for(let rnum=1;rnum<=rounds;rnum++){
+      console.debug('simulation round', rnum)
+      const rolesSnap = await get(ref(db,`rooms/${currentRoom}/roles`))
+      const roles = rolesSnap.exists() ? rolesSnap.val() : {}
+      const hackers = Object.entries(roles).filter(([id,ro])=>ro && (ro.id==='cyberwolf' || ro.id==='glitches')).map(([id,ro])=>id)
+      const playersSnap = await get(ref(db,`rooms/${currentRoom}/players`))
+      const pls = playersSnap.exists() ? playersSnap.val() : {}
+      const alive = Object.keys(pls).filter(pid=>pls[pid] && pls[pid].status==='online')
+      if(hackers.length > 0 && alive.length > 1){
+        const attacker = hackers[Math.floor(Math.random()*hackers.length)]
+        const possible = alive.filter(a=>a!==attacker)
+        const victim = possible[Math.floor(Math.random()*possible.length)]
+        await set(ref(db,`rooms/${currentRoom}/pendingBans/${victim}`), {by:attacker,ts:now(),cmd:'sim-hack'})
+      }
+      await onPhaseTimerEnds()
+      const aliveNowSnap = await get(ref(db,`rooms/${currentRoom}/players`))
+      const plsNow = aliveNowSnap.exists() ? aliveNowSnap.val() : {}
+      const aliveNow = Object.keys(plsNow).filter(pid=>plsNow[pid] && plsNow[pid].status==='online')
+      if(aliveNow.length>0){
+        const voterPool = aliveNow
+        for(const v of voterPool){
+          const target = Math.random() < 0.6 ? aliveNow[Math.floor(Math.random()*aliveNow.length)] : ('SKIP_'+v)
+          await set(ref(db,`rooms/${currentRoom}/votes/${v}`), {voter:v,target,ts:now()})
+        }
+        await onPhaseTimerEnds()
+      }
+      await new Promise(res=>setTimeout(res, 400))
+    }
+    await showEnd('Simulation completed')
+  }
+
+  // ---------- Vote button visibility fix ----------
+  function updateVoteButtonVisibility(){
+    try{
+      const me = players[localId]
+      if(phase === 'DAY' && me && me.status === 'online'){
+        voteBtn.style.display = 'inline-block'
+        voteSkipBtn.style.display = 'inline-block'
+      } else {
+        voteBtn.style.display = 'none'
+        voteSkipBtn.style.display = phase === 'DAY' && me && me.status === 'online' ? 'inline-block' : 'none'
+      }
+    }catch(e){ console.warn('updateVoteButtonVisibility', e) }
+  }
+
+  // ---------- Command widget visibility & minimize & drag ----------
+  let lastMinimized = null // 'small' or 'card' or null
+
+  function updateCommandWidgetVisibility(){ 
+    try{ 
+      const roleAllowsDay = myRole && myRole.allowDay; 
+      const show = (phase === 'NIGHT') || (roleAllowsDay && phase === 'DAY'); 
+      if(show){
+        if(isWideScreen()){
+          commandCard.classList.remove('hidden')
+          smallWidget.classList.add('hidden')
+        } else {
+          smallWidget.classList.remove('hidden')
+          commandCard.classList.add('hidden')
+        }
+      } else {
+        smallWidget.classList.add('hidden')
+        commandCard.classList.add('hidden')
+      }
+    }catch(e){ console.warn('updateCommandWidgetVisibility', e) } 
+  }
+  window.addEventListener('resize', updateCommandWidgetVisibility)
+
+  // minimize small widget
+  minimizeSmallBtn.addEventListener('click', ()=>{
+    smallWidget.classList.add('minimized')
+    lastMinimized = 'small'
+    const rect = smallWidget.getBoundingClientRect()
+    restoreBtn.style.left = (Math.max(8, rect.left)) + 'px'
+    restoreBtn.style.top = (Math.max(8, rect.top)) + 'px'
+    restoreBtn.style.display = 'block'
+    restoreBtn.setAttribute('aria-hidden','false')
+  })
+
+  // minimize command card (desktop)
+  const minCardBtn = $('#minimizeCmdCard')
+  if(minCardBtn){
+    minCardBtn.addEventListener('click', ()=>{
+      commandCard.classList.add('hidden')
+      lastMinimized = 'card'
+      restoreBtn.style.left = (window.innerWidth - 120) + 'px'
+      restoreBtn.style.top = (window.innerHeight - 60) + 'px'
+      restoreBtn.style.display = 'block'
+      restoreBtn.setAttribute('aria-hidden','false')
+    })
+  }
+
+  // restore (works for both)
+  restoreBtn.addEventListener('click', ()=>{
+    restoreBtn.style.display = 'none'
+    restoreBtn.setAttribute('aria-hidden','true')
+    if(lastMinimized === 'small'){
+      smallWidget.classList.remove('minimized')
+      smallWidget.classList.remove('hidden')
+      lastMinimized = null
+      return
+    }
+    if(lastMinimized === 'card'){
+      if(isWideScreen()){
+        commandCard.classList.remove('hidden')
+      } else {
+        smallWidget.classList.remove('hidden')
+      }
+      lastMinimized = null
+      return
+    }
+    // fallback: make visible appropriate widget
+    if(isWideScreen()){
+      commandCard.classList.remove('hidden')
+    } else {
+      smallWidget.classList.remove('hidden')
+    }
+  })
+
+  // Draggable implementation
+  const dragState = { dragging:false, el:null, offsetX:0, offsetY:0 }
+  function makeDraggable(el, handle){
+    if(!el || !handle) return
+    const start = (e)=>{
+      e.preventDefault()
+      dragState.dragging = true
+      dragState.el = el
+      const rect = el.getBoundingClientRect()
+      const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX
+      const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY
+      dragState.offsetX = clientX - rect.left
+      dragState.offsetY = clientY - rect.top
+      el.style.right = ''
+      el.style.bottom = ''
+      el.style.left = rect.left + 'px'
+      el.style.top = rect.top + 'px'
+      el.style.position = 'fixed'
+      if(el.id === 'commandCard') el.classList.add('draggable-fixed')
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', end)
+      document.addEventListener('touchmove', onMove, {passive:false})
+      document.addEventListener('touchend', end)
+    }
+    const onMove = (e)=>{
+      if(!dragState.dragging || !dragState.el) return
+      const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX
+      const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY
+      let left = clientX - dragState.offsetX
+      let top = clientY - dragState.offsetY
+      left = Math.max(8, Math.min(window.innerWidth - dragState.el.offsetWidth - 8, left))
+      top = Math.max(8, Math.min(window.innerHeight - dragState.el.offsetHeight - 8, top))
+      dragState.el.style.left = left + 'px'
+      dragState.el.style.top = top + 'px'
+    }
+    const end = ()=>{
+      if(dragState.el && dragState.el.id === 'commandCard') dragState.el.classList.remove('draggable-fixed')
+      dragState.dragging = false
+      dragState.el = null
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', end)
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('touchend', end)
+    }
+    handle.addEventListener('mousedown', start)
+    handle.addEventListener('touchstart', start, {passive:false})
+  }
+  makeDraggable(smallWidget, cmdHeader)
+  makeDraggable(commandCard, cmdCardHandle)
+
+  // keep DB connection alive
+  onValue(ref(db),()=>{})
+
+  // leave handlers
+  leaveRoomLobbyBtn.onclick = async ()=>{ if(!currentRoom) return; await remove(ref(db,`rooms/${currentRoom}/players/${localId}`)); currentRoom=null; myRole=null; gameUi.classList.add('hidden'); lobbyUi.classList.add('hidden'); joinUi.classList.remove('hidden'); stopAllMusic(); alert('Left room') }
+  leaveRoomBtn.onclick = leaveRoomLobbyBtn.onclick
+
+  // Expose chat send via Enter key
+  $('#publicMsg').addEventListener('keydown', (e)=>{ if(e.key==='Enter') $('#sendPublic').click() })
+  $('#commandMsg').addEventListener('keydown', (e)=>{ if(e.key==='Enter') $('#sendCommand').click() })
+  $('#smallCommandInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') $('#smallSendCmd').click() })
+
+  console.log('Patched: commands implemented. LocalId:', localId)
+</script>
+</body>
+</html>
