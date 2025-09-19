@@ -82,7 +82,7 @@
     </div>
     <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
       <label style="font-size:13px">Saya <input id="isAdminCheckbox" type="checkbox" style="margin-left:6px"/></label>
-      <div class="small-muted" style="margin-left:8px">Okay then</div>
+      <div class="small-muted" style="margin-left:8px">Tandakan kalau anda admin yang hendak test</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div><input id="roomCodeInput" placeholder="Masukkan code room (atau buat baru)" /></div>
@@ -105,14 +105,14 @@
       <h4>Available Rooms</h4>
       <div class="rooms-list" id="roomsList">Loading...</div>
     </div>
-    <div class="footer-note">Tip: Ini masih beta, jika ada error/bug,bagitahu saya.</div>
+    <div class="footer-note">Info : Ini masih versi beta dan akan banyak bug/crash/error dan lain². Jika berlaku sesuatu,jangan bagitahu aku. Aku malas (jk)</div>
   </div>  <!-- LOBBY UI -->  <div id="lobbyUi" class="card hidden">
     <div class="lobby-grid">
       <div>
         <h3>Room: <span id="roomCodeBadgeLobby">—</span> <span id="adminBadge" class="badge-admin hidden">ADMIN</span></h3>
         <div style="margin-top:8px">
-          <h4>Rules & Role Intro</h4>
-          <div class="rule">- Siang / Malam configurable.<br>- Host tekan <strong>Start</strong> untuk mula. Jika simulation/on admin test: boleh start walau kurang pemain.</div>
+          <h4>Rules</h4>
+          <div class="rule">- Semua pemain akan diberikan role dan <strong>Mungkin</strong> akan ada yang sama.<br>- Host tekan <strong>Start</strong> untuk mula. Hanya host boleh ubah HackerSlot. Jika player lain yang ubah,aku tak tahu resikonya. <br> - Pastikan bermain lebih dari 4 orang. Walaupun boleh main 3 orang,ketika vote 1 orang,dia akan detect tidak cukup pemain. <br> - Untuk lebih baik,main siang 3 minit dan malam 1 minit. <br> - Kadang,ketika tamat permainan/tidak cukup pemain,akan ada bug stuck di game, refresh untuk keluar. Bug ni belum dibaiki.</div>
         </div>
         <div style="margin-top:12px" id="adminControls" class="hidden">
           <strong>Admin Controls</strong>
@@ -557,20 +557,29 @@
   }
 
   function appendCommandMsg(m){
-    const roomState = phase || 'LOBBY'
-    if(roomState === 'LOBBY') return
-    const msgRole = m.role || 'all'
-    const iAmSender = (m.from === localId)
-    const iHaveRoleId = myRole && myRole.id
-    let allowed = false
-    if(iAmSender) allowed = true
-    else if(m.from === 'server') allowed = true
-    else if(msgRole === 'all'){ allowed = !!(iHaveRoleId && myRole && Array.isArray(myRole.commands) && myRole.commands.length>0) }
-    else if(iHaveRoleId && msgRole === iHaveRoleId) allowed = true
-    if(!allowed) return
-    const d = document.createElement('div'); d.className='msg'; d.innerHTML=`<div class='meta'>${m.name} • ${new Date(m.ts).toLocaleTimeString()} • <small>role:${m.role}</small></div><div><code>${m.text}</code></div>`
-    commandChatEl.appendChild(d); smallChat.appendChild(d.cloneNode(true))
-  }
+  const roomState = phase || 'LOBBY'
+  if(roomState === 'LOBBY') return
+  const msgRole = m.role || 'all'
+  const iAmSender = (m.from === localId)
+  const iHaveRoleId = myRole && myRole.id
+
+  let allowed = false
+  // sender selalu boleh lihat
+  if(iAmSender) allowed = true
+  // kalau role 'all' => semua pemain boleh lihat (atau anda boleh restring lagi jika mahu)
+  else if(msgRole === 'all') allowed = true
+  // kalau role spesifik => cuma mereka yang ada role tu boleh lihat
+  else if(iHaveRoleId && msgRole === iHaveRoleId) allowed = true
+  // TIDAK lagi auto-allow untuk semua jika m.from === 'server' — server message harus dihormati per m.role
+
+  if(!allowed) return
+
+  const d = document.createElement('div')
+  d.className='msg'
+  d.innerHTML=`<div class='meta'>${m.name} • ${new Date(m.ts).toLocaleTimeString()} ${m.role?(`<small> • role:${m.role}</small>`):''}</div><div><code>${m.text}</code></div>`
+  commandChatEl.appendChild(d)
+  smallChat.appendChild(d.cloneNode(true))
+}
 
   // public send
   sendPublicBtn.onclick = async ()=>{
