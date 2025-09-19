@@ -924,9 +924,20 @@
             const globalProtSnap = await get(ref(db,`rooms/${currentRoom}/globalProtection`))
             const globalProt = globalProtSnap.exists() ? globalProtSnap.val() : null
             if(!(globalProt && globalProt.active) && !(prot && prot.expiresAt && prot.expiresAt > now())){
-              await update(ref(db,`rooms/${currentRoom}/players/${pid}`), {status:'banned'})
-              await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[pid] ? players[pid].name : pid} banned by hack`})
-              await pushServerMessage(`${players[pid] ? players[pid].name : pid} banned by hack`)
+              // set status banned
+await update(ref(db,`rooms/${currentRoom}/players/${pid}`), {status:'banned'})
+
+// try to fetch the role and reveal it publicly
+const roleSnap = await get(ref(db, `rooms/${currentRoom}/roles/${pid}`))
+const roleObj = roleSnap.exists() ? roleSnap.val() : null
+const roleText = roleObj ? `${roleObj.name} (${roleObj.id})` : 'Role tidak ditemui'
+
+// push event + public server message that includes role
+await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(), text:`${players[pid] ? players[pid].name : pid} banned by hack — role: ${roleText}`})
+await pushServerMessage(`${players[pid] ? players[pid].name : pid} banned by hack — role: ${roleText}`)
+
+// optional: store revealed role flag so UI can highlight it later
+await set(ref(db, `rooms/${currentRoom}/revealedRoles/${pid}`), {role: roleObj || null, revealedAt: now()})
             } else {
               await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[pid] ? players[pid].name : pid} was protected; no ban applied`})
               await pushServerMessage(`${players[pid] ? players[pid].name : pid} was protected; no ban applied`)
@@ -954,9 +965,20 @@
           await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[out] ? players[out].name : out} would be eliminated but was saved`})
           await pushServerMessage(`${players[out] ? players[out].name : out} was saved and not eliminated.`)
         } else {
-          await update(ref(db,`rooms/${currentRoom}/players/${out}`), {status:'eliminated'})
-          await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[out] ? players[out].name : out} eliminated by vote (${maxc} votes)`})
-          await pushServerMessage(`${players[out] ? players[out].name : out} eliminated by vote (${maxc} votes)`)
+          // set status eliminated
+await update(ref(db,`rooms/${currentRoom}/players/${out}`), {status:'eliminated'})
+
+// fetch role and reveal it
+const roleSnap = await get(ref(db, `rooms/${currentRoom}/roles/${out}`))
+const roleObj = roleSnap.exists() ? roleSnap.val() : null
+const roleText = roleObj ? `${roleObj.name} (${roleObj.id})` : 'Role tidak ditemui'
+
+// push event + public server message including role
+await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(), text:`${players[out] ? players[out].name : out} eliminated by vote (${maxc} votes) — role: ${roleText}`})
+await pushServerMessage(`${players[out] ? players[out].name : out} eliminated by vote (${maxc} votes) — role: ${roleText}`)
+
+// optional: save revealed role flag
+await set(ref(db, `rooms/${currentRoom}/revealedRoles/${out}`), {role: roleObj || null, revealedAt: now()})
           const revSnap = await get(ref(db,`rooms/${currentRoom}/revenge/${out}`))
           if(revSnap.exists()){ const rev = revSnap.val(); if(rev && rev.targetPid){ await update(ref(db,`rooms/${currentRoom}/players/${rev.targetPid}`), {status:'eliminated'}); await push(ref(db,`rooms/${currentRoom}/events`), {ts:now(),text:`${players[rev.targetPid] ? players[rev.targetPid].name : rev.targetPid} eliminated by revenge`}); await pushServerMessage(`${players[rev.targetPid] ? players[rev.targetPid].name : rev.targetPid} eliminated by revenge`) } }
         }
